@@ -51,7 +51,9 @@ estimateNs <- function(zObs, ns) {
     cat(" took", (proc.time() - pt)[3], "s\n")
   }
 
-  minPartIdxs <- apply(resParts[,,1,, drop=FALSE], c(2,3), which.min)
+  resPartsErr <- resParts[,,1,]
+  dim(resPartsErr) <- dim(resParts)[c(1,2,4)]
+  minPartIdxs <- apply(resPartsErr, c(2,3), which.min)
   res <- array(NA_real_, dim=c(nReps, length(ns), 3))
   for (iRepIdx in seq_along(repIdx)) for (nIdx in seq_along(ns)) {
     res[iRepIdx, nIdx, ] <- resParts[minPartIdxs[iRepIdx, nIdx], iRepIdx, , nIdx]
@@ -89,7 +91,8 @@ for (i in seq_along(noiseParamsIdx)) {
 #       mutate(n = as.integer(n), noiseParam = as.double(noiseParam)),
 #     join_by(n, noiseParam))
 
-outputFileName <- sprintf(outputFileNamePattern, rlang::hash(results))
-write_rds(lst(rEstis, noiseType, ns, noiseParamsIdx, repIdx), file=file.path(.DataPath, outputFileName))
+resultsList <- lst(rEstis, noiseType, ns, noiseParamsIdx, repIdx)
+outputFileName <- sprintf(outputFileNamePattern, rlang::hash(resultsList))
+write_rds(resultsList, file=file.path(.DataPath, outputFileName))
 #write_csv(results, file.path(.DataPath, outputFileName))
 
