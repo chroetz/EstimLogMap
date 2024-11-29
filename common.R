@@ -1,0 +1,3 @@
+.DataPath <- "~/EstimLogMapData"
+
+library(tidyverse)
