@@ -5,6 +5,7 @@ args <- commandArgs(TRUE)
 noiseType <- "Beta" # Beta, Gauss
 ns <- 2^(2:8)
 noiseParamsIdx <- 1:1000
+repIdx <- c(2,6)#1:1000
 
 
 
@@ -17,43 +18,47 @@ source("common.R")
 
 
 dataFileName <- sprintf("LogMapData_%s.RDS", noiseType)
-outputFileName <- sprintf("errorGs1_%s.csv", noiseType)
+outputFileNamePattern <- sprintf("errorGs1_%s_%%s.csv", noiseType)
 data <- readRDS(file.path(.DataPath, dataFileName))
-nMax <- data$settings$nMax
-nReps <- data$settings$nReps
+nReps <- length(repIdx)
 noiseParams <- data$settings$noiseParams
 noiseParamsIdx <- intersect(seq_along(noiseParams), noiseParamsIdx)
+nParts <- 10
+gridDataFileName <- "LogMapGrid_256_1000_10_%d.RDS"
 
 
 
-estimate <- function(z, ns) {
-  nMax <- ncol(z)
-  nReps <- nrow(z)
+estimateNs <- function(zObs, ns) {
+  nMax <- ncol(zObs)
 
-  nParts <- 100
   resParts <- array(NA_real_, dim=c(nParts, nReps, 3, length(ns)))
 
   for (iPart in seq_len(nParts)) {
     pt <- proc.time()
-    gridData <- readRDS(file.path(.LogMapGridStorePath, sprintf("LogMapGrid_32_10000_100_%d.RDS", iPart)))
-    cat(iPart)
-    for (iRep in seq_len(nReps)) {
+    gridData <- readRDS(file.path(.LogMapGridStorePath, sprintf(gridDataFileName, iPart)))
+    nMaxGrid <- min(c(ncol(gridData$z), nMax, max(ns)))
+    gridDataZ <- gridData$z[, seq_len(nMaxGrid)]
+    cat("Part:" , iPart, "with", nReps, "reps\n")
+    for (iRepIdx in seq_along(repIdx)) {
+      iRep <- repIdx[iRepIdx]
+      cat(iRep, ", ")
       z <- zObs[iRep,]
-      sqrDiff <- (gridData$z[, seq_along(z)] - rep(z, each = nrow(gridData$z)))^2
-      errors <- sapply(ns, \(n) rowSums(sqrDiff[,(nMax-n+1):nMax, drop=FALSE]))
-      # TODO: check following
+      sqrDiff <- (gridDataZ - rep(z[seq_len(nMaxGrid)], each = nrow(gridData$z)))^2
+      errors <- sapply(ns, \(n) rowSums(sqrDiff[,seq_len(min(c(n, nMaxGrid))), drop=FALSE]))
       minIdx <- apply(errors, 2, which.min)
-      resParts[iPart, iRep, , ] <- sapply(seq_along(minIdx), \(n) c(errors[minIdx[n],n], gridData$grid$z0[minIdx[n]], gridData$grid$r[minIdx[n]]))
+      resParts[iPart, iRepIdx, , ] <- sapply(seq_along(minIdx), \(n) c(errors[minIdx[n],n], gridData$grid$z0[minIdx[n]], gridData$grid$r[minIdx[n]]))
     }
     cat(" took", (proc.time() - pt)[3], "s\n")
   }
 
-  minPartIdxs <- apply(resParts[,,1,], c(2,3), which.min)
-  res <- array(NA_real_, dim=c(nReps, nMax, 3))
-  for (iRep in seq_len(nReps)) for (n in seq_len(nMax)) {
-    res[iRep, n, ] <- resParts[minPartIdxs[iRep, n], iRep, , n]
+  minPartIdxs <- apply(resParts[,,1,, drop=FALSE], c(2,3), which.min)
+  res <- array(NA_real_, dim=c(nReps, length(ns), 3))
+  for (iRep in seq_len(nReps)) for (nIdx in seq_along(ns)) {
+    res[iRep, nIdx, ] <- resParts[minPartIdxs[iRep, nIdx], iRep, , nIdx]
   }
-  #TODO
+
+  rEsti <- res[,,3]
+
   return(rEsti)
 }
 
@@ -63,9 +68,9 @@ rEstis <- array(
   dimnames = list(reps=seq_len(nReps), ns = ns, noiseParam = noiseParams[noiseParamsIdx])
 )
 
-for (i in seq_along(noiseParamsIdx)) for (j in seq_along(ns)) {
-  cat(i, ", ", j, "; ")
-  rEstis[ ,j,i] <- estimate(data$noisy[[noiseParamsIdx[[i]]]], ns[[j]])
+for (i in seq_along(noiseParamsIdx)) {
+  cat("NoiseIdx:", i, "\n")
+  rEstis[ ,,i] <- estimateNs(data$noisy[[noiseParamsIdx[[i]]]], ns)
 }
 
 rErr <- abs(rEstis - rep(data$r[seq_len(nReps)], times = length(noiseParamsIdx)*length(ns)))
@@ -84,5 +89,6 @@ results <-
       mutate(n = as.integer(n), noiseParam = as.double(noiseParam)),
     join_by(n, noiseParam))
 
+outputFileName <- sprintf(outputFileNamePattern, rlang::hash(results))
 write_csv(results, file.path(.DataPath, outputFileName))
 
