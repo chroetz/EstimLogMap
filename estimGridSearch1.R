@@ -53,8 +53,8 @@ estimateNs <- function(zObs, ns) {
 
   minPartIdxs <- apply(resParts[,,1,, drop=FALSE], c(2,3), which.min)
   res <- array(NA_real_, dim=c(nReps, length(ns), 3))
-  for (iRep in seq_len(nReps)) for (nIdx in seq_along(ns)) {
-    res[iRep, nIdx, ] <- resParts[minPartIdxs[iRep, nIdx], iRep, , nIdx]
+  for (iRepIdx in seq_along(repIdx)) for (nIdx in seq_along(ns)) {
+    res[iRepIdx, nIdx, ] <- resParts[minPartIdxs[iRepIdx, nIdx], iRepIdx, , nIdx]
   }
 
   rEsti <- res[,,3]
