@@ -9,7 +9,16 @@ repIdx <- c(2,6)#1:1000
 
 
 
-if (length(args > 0)) eval(parse(text = paste(args, collapse=";"))) # evaluate cmd args as R code
+if (length(args > 0)) {
+  expression <- parse(text = paste(args, collapse=";"))
+  print(expression)
+  eval(expression)
+}
+
+cat(sprintf("noiseType: %s\n", noiseType))
+cat(sprintf("ns: %s\n", paste(ns, collapse=",")))
+cat(sprintf("noiseParamsIdx: %s\n", paste(noiseParamsIdx, collapse=",")))
+cat(sprintf("noiseType: %s\n", paste(repIdx, collapse=",")))
 
 
 
@@ -67,7 +76,7 @@ estimateNs <- function(zObs, ns) {
 rEstis <- array(
   NA_real_,
   dim = c(nReps, length(ns), length(noiseParamsIdx)),
-  dimnames = list(reps=seq_len(nReps), ns = ns, noiseParam = noiseParams[noiseParamsIdx])
+  dimnames = list(reps=repIdx, ns = ns, noiseParam = noiseParams[noiseParamsIdx])
 )
 
 for (i in seq_along(noiseParamsIdx)) {
