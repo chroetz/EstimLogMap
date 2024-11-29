@@ -1,5 +1,5 @@
 noiseTypes <- c("Gauss", "Beta")
-noiseParamsIdxs <- list(Gauss=1:9, Beta=19)
+noiseParamsIdxs <- list(Gauss=1:9, Beta=1:19)
 repIdxRanges <- lapply(1:100, \(x) c(1 + 10*(x-1), 10*x))
 
 for (repIdxRange in repIdxRanges) for (noiseType in noiseTypes) for (noiseParamsIdx in noiseParamsIdxs[[noiseType]])  {
