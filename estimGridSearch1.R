@@ -18,7 +18,7 @@ source("common.R")
 
 
 dataFileName <- sprintf("LogMapData_%s.RDS", noiseType)
-outputFileNamePattern <- sprintf("errorGs1_%s_%%s.csv", noiseType)
+outputFileNamePattern <- sprintf("errorGs1_%s_%%s.RDS", noiseType)
 data <- readRDS(file.path(.DataPath, dataFileName))
 nReps <- length(repIdx)
 noiseParams <- data$settings$noiseParams
@@ -73,22 +73,23 @@ for (i in seq_along(noiseParamsIdx)) {
   rEstis[ ,,i] <- estimateNs(data$noisy[[noiseParamsIdx[[i]]]], ns)
 }
 
-rErr <- abs(rEstis - rep(data$r[seq_len(nReps)], times = length(noiseParamsIdx)*length(ns)))
+#rErr <- abs(rEstis - rep(data$r[seq_len(nReps)], times = length(noiseParamsIdx)*length(ns)))
 
-results <-
-  left_join(
-    rErr |>
-      apply(2:3, mean) |>
-      as_tibble(rownames = "n") |>
-      pivot_longer(-n, names_to="noiseParam", values_to="AE_mean") |>
-      mutate(n = as.integer(n), noiseParam = as.double(noiseParam)),
-    rErr |>
-      apply(2:3, sd) |>
-      as_tibble(rownames = "n") |>
-      pivot_longer(-n, names_to="noiseParam", values_to="AE_sd") |>
-      mutate(n = as.integer(n), noiseParam = as.double(noiseParam)),
-    join_by(n, noiseParam))
+# results <-
+#   left_join(
+#     rErr |>
+#       apply(2:3, mean) |>
+#       as_tibble(rownames = "n") |>
+#       pivot_longer(-n, names_to="noiseParam", values_to="AE_mean") |>
+#       mutate(n = as.integer(n), noiseParam = as.double(noiseParam)),
+#     rErr |>
+#       apply(2:3, sd) |>
+#       as_tibble(rownames = "n") |>
+#       pivot_longer(-n, names_to="noiseParam", values_to="AE_sd") |>
+#       mutate(n = as.integer(n), noiseParam = as.double(noiseParam)),
+#     join_by(n, noiseParam))
 
 outputFileName <- sprintf(outputFileNamePattern, rlang::hash(results))
-write_csv(results, file.path(.DataPath, outputFileName))
+write_rds(lst(rEstis, noiseType, ns, noiseParamsIdx, repIdx), file=file.path(.DataPath, outputFileName))
+#write_csv(results, file.path(.DataPath, outputFileName))
 
