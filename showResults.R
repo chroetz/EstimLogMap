@@ -21,7 +21,7 @@ wideRanks <-
   arrange(noise, n, noiseParam)
 
 library(gt)
-tbl <- 
+tbl <-
   wideAbsErrs |>
   gt() |>
   opt_row_striping(row_striping = TRUE) |>
@@ -60,15 +60,15 @@ tbl
 write_lines(as_raw_html(tbl), "error_results.html")
 
 
-reducedWideAbsErrs <- 
-  wideAbsErrs |> 
-  filter(n %in% c(8, 16)) |> 
+reducedWideAbsErrs <-
+  wideAbsErrs |>
+  filter(n %in% c(8, 16)) |>
   filter(noiseParam < 1000 & noiseParam >= 0.01)
 
-tblReducedGauss <- 
+tblReducedGauss <-
   reducedWideAbsErrs |>
-  filter(noise == "Gauss") |> 
-  select(-noise) |> 
+  filter(noise == "Gauss") |>
+  select(-noise) |>
   gt() |>
   opt_row_striping(row_striping = TRUE) |>
   opt_vertical_padding(scale = 0) |>
@@ -78,7 +78,7 @@ tblReducedGauss <-
     n = "n"
   ) |>
   cols_move_to_start(c(noiseParam)) |>
-  cols_move_to_end(Gs1) |> 
+  cols_move_to_end(Gs1) |>
   sub_missing(
     columns = everything(),
     rows = everything(),
@@ -93,18 +93,18 @@ tblReducedGauss <-
     method = "numeric",
     palette = "viridis",
     direction = "row"
-  ) |> 
-  tab_row_group("n=8", n==8) |> 
-  tab_row_group("n=16", n==16) |> 
+  ) |>
+  tab_row_group("n=8", n==8) |>
+  tab_row_group("n=16", n==16) |>
   cols_hide(n)
 tblReducedGauss
 write_lines(as_raw_html(tblReducedGauss), "error_results_reduced_Gauss.html")
 
 
-tblReducedBeta <- 
+tblReducedBeta <-
   reducedWideAbsErrs |>
-  filter(noise == "Beta", noiseParam >= 1) |> 
-  select(-noise) |> 
+  filter(noise == "Beta", noiseParam >= 1) |>
+  select(-noise) |>
   gt() |>
   opt_row_striping(row_striping = TRUE) |>
   opt_vertical_padding(scale = 0) |>
@@ -114,7 +114,7 @@ tblReducedBeta <-
     n = "n"
   ) |>
   cols_move_to_start(c(noiseParam)) |>
-  cols_move_to_end(Gs1) |> 
+  cols_move_to_end(Gs1) |>
   sub_missing(
     columns = everything(),
     rows = everything(),
@@ -129,9 +129,51 @@ tblReducedBeta <-
     method = "numeric",
     palette = "viridis",
     direction = "row"
-  ) |> 
-  tab_row_group("n=8", n==8) |> 
-  tab_row_group("n=16", n==16) |> 
+  ) |>
+  tab_row_group("n=8", n==8) |>
+  tab_row_group("n=16", n==16) |>
   cols_hide(n)
 tblReducedBeta
 write_lines(as_raw_html(tblReducedBeta), "error_results_reduced_Beta.html")
+
+
+pltGauss <-
+  reducedWideAbsErrs |>
+  filter(noise == "Gauss", noiseParam <= 0.32) |>
+  pivot_longer(c(Gs1, Ols, Tls), names_to="Estimator", values_to="MAE") |>
+  mutate(Estimator = factor(Estimator, levels = c("Ols", "Tls", "Gs1"), labels = c("OLS", "TLS", "Grid Search"))) |>
+  mutate(n = as.factor(n)) |>
+  ggplot(aes(x = noiseParam, y = MAE, color = Estimator), ) +
+  geom_point(aes(shape = n)) +
+  geom_line(aes(linetype = n)) +
+  scale_y_log10(limits = c(NA, 1)) +
+  scale_x_log10() +
+  xlab("Noise Standard Deviation") +
+  ggtitle("Gaussian Noise")
+pltGauss
+
+library("scales")
+reverselog_trans <- function (base = exp(1)) {
+  force(base)
+  new_transform(paste0("log-", format(base)), function(x) -log(x,
+      base), function(x) base^(-x), d_transform = function(x) -1/x/log(base),
+      d_inverse = function(x) -base^x * log(base), breaks = log_breaks(base = base),
+      domain = c(1e-100, Inf))
+}
+pltBeta <-
+  reducedWideAbsErrs |>
+  filter(noise == "Beta", noiseParam >= 1) |>
+  pivot_longer(c(Gs1, Ols, Tls), names_to="Estimator", values_to="MAE") |>
+  mutate(Estimator = factor(Estimator, levels = c("Ols", "Tls", "Gs1"), labels = c("OLS", "TLS", "Grid Search"))) |>
+  mutate(n = as.factor(n)) |>
+  ggplot(aes(x = noiseParam, y = MAE, color = Estimator), ) +
+  geom_point(aes(shape = n)) +
+  geom_line(aes(linetype = n)) +
+  scale_y_log10(limits = c(NA, 1)) +
+  scale_x_continuous(transform  = reverselog_trans(10)) +
+  xlab("Noise Precision") +
+  ggtitle("Beta Noise")
+pltBeta
+
+ggsave("EstimLogMap-Restricted-Gauss.pdf", plot = pltGauss, width = 5, height = 3)
+ggsave("EstimLogMap-Restricted-Beta.pdf", plot = pltBeta, width = 5, height = 3)
